@@ -6,6 +6,7 @@ import (
 	"github.com/jinzhu/gorm"
 	"github.com/spoik/animal-crossing/models"
 	"github.com/spoik/animal-crossing/router"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -23,15 +24,22 @@ func Setup() (*gin.Engine, *gorm.DB) {
 	return router.Create(db), db
 }
 
-func MakeRequest(router *gin.Engine, method string, url string) *httptest.ResponseRecorder {
+func MakeRequest(router *gin.Engine, method string, url string, body io.Reader) *httptest.ResponseRecorder {
 	httpRecorder := httptest.NewRecorder()
-	request, err := http.NewRequest(method, url, nil)
+	request, err := http.NewRequest(method, url, body)
 
 	if err != nil {
-		panic(fmt.Sprintf("Unable to create request for %s %s", method, url))
+		panic(fmt.Sprintf("Unable to create %s request for %s", method, url))
 	}
 
 	router.ServeHTTP(httpRecorder, request)
 	return httpRecorder
 }
 
+func GetRequest(router *gin.Engine, url string) *httptest.ResponseRecorder {
+	return MakeRequest(router, "GET", url, nil)
+}
+
+func PostRequest(router *gin.Engine, url string, body io.Reader) *httptest.ResponseRecorder {
+	return MakeRequest(router, "POST", url, body)
+}

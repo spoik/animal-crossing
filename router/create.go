@@ -19,6 +19,7 @@ func Create(db *gorm.DB) *gin.Engine {
 	})
 
 	router.GET("/items", handlers.AllBooks)
+	router.POST("/items", handlers.CreateBook)
 
 	Admin.MountTo("/admin", mux)
 	router.Any("/admin/*resources", gin.WrapH(mux))
