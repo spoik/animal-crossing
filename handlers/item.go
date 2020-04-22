@@ -25,10 +25,22 @@ type NewItem struct {
 func CreateBook(c *gin.Context) {
 	db := c.MustGet("db").(*gorm.DB)
 
-	var newBook NewItem
-	c.ShouldBindJSON(&newBook)
+	var newItem NewItem
 
-	item := models.Item{Title: newBook.Title, Bells: newBook.Bells}
+	err := c.ShouldBindJSON(&newItem)
+	if err != nil {
+		c.Status(http.StatusBadRequest)
+		return
+	}
+
+	item := models.Item{Title: newItem.Title, Bells: newItem.Bells}
+	errorResponse := validateItem(item, c)
+
+	if errorResponse != nil {
+		c.JSON(http.StatusUnprocessableEntity, errorResponse)
+		return
+	}
+
 	db.Create(&item)
 
 	c.Status(http.StatusCreated)

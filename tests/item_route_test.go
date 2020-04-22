@@ -3,8 +3,10 @@ package tests
 import (
 	"bytes"
 	"encoding/json"
+	"github.com/jinzhu/gorm"
 	"github.com/spoik/animal-crossing/handlers"
 	"net/http"
+	"strings"
 	"testing"
 
 	"github.com/spoik/animal-crossing/models"
@@ -39,12 +41,10 @@ func TestItemsInDB(t *testing.T) {
 	assert.JSONEq(t, string(expectedJson), response.Body.String())
 }
 
-func TestCreateItem(t *testing.T) {
+func TestSuccessfulCreateItem(t *testing.T) {
 	router, db := Setup()
 
-	var count int
-	db.Model(&models.Item{}).Count(&count)
-	assert.Equal(t, count, 0)
+	assertNoItemsInDB(t, db)
 
 	newItem := handlers.NewItem{Title: "testing", Bells: 10}
 	postJson, err := json.Marshal(newItem)
@@ -55,11 +55,48 @@ func TestCreateItem(t *testing.T) {
 	response := PostRequest(router, "/items", bytes.NewReader(postJson))
 	assert.Equal(t, http.StatusCreated, response.Code)
 
-	db.Model(&models.Item{}).Count(&count)
-	assert.Equal(t, count, 1)
+	assertNumItemsInDb(t, db, 1)
 
 	var item models.Item
 	db.Model(&models.Item{}).Last(&item)
 	assert.Equal(t, item.Title, newItem.Title)
 	assert.Equal(t, item.Bells, newItem.Bells)
+}
+
+func TestCreateItemWithNoTitle(t *testing.T) {
+	router, db := Setup()
+	assertNoItemsInDB(t, db)
+
+	requestJson := `{"title": "", "bells": 100}`
+	response := PostRequest(router, "/items", strings.NewReader(requestJson))
+	assert.Equal(t, http.StatusUnprocessableEntity, response.Code)
+
+	expectedJson := `{"error_messages": ["Title is a required field"]}`
+	assert.JSONEq(t, expectedJson, response.Body.String())
+
+	assertNoItemsInDB(t, db)
+}
+
+func TestCreateItemWithNoBells(t *testing.T) {
+	router, db := Setup()
+	assertNoItemsInDB(t, db)
+
+	requestJson := `{"title": "Testing", "bells": 0}`
+	response := PostRequest(router, "/items", strings.NewReader(requestJson))
+	assert.Equal(t, http.StatusUnprocessableEntity, response.Code)
+
+	expectedJson := `{"error_messages": ["Bells is a required field"]}`
+	assert.JSONEq(t, expectedJson, response.Body.String())
+
+	assertNoItemsInDB(t, db)
+}
+
+func assertNumItemsInDb(t *testing.T, db *gorm.DB, num int) {
+	var count int
+	db.Model(&models.Item{}).Count(&count)
+	assert.Equal(t, count, num)
+}
+
+func assertNoItemsInDB(t *testing.T, db *gorm.DB) {
+	assertNumItemsInDb(t, db, 0)
 }
